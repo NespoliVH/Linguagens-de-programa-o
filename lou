@@ -1,0 +1,49 @@
+import pandas as pd
+import openpyxl
+import matplotlib.pyplot as plt
+
+df = pd.read_excel('brasileirao.xlsx')
+
+print()
+
+# Passo 2 - Calcular o saldo de gols SG
+df["Saldo de Gols"] = df["GP"] - df["GC"]
+
+
+#Passo 3 Calcular a pontuação total
+
+#criar uma coluna chamada de pontos onde a pontuação sera calculada da seguinte forma
+#VITORIA (V) = 3
+#DERROTA (D) = 0
+#EMPATE (E) = 1
+
+df['Pontos'] = df['V'] * 3 + df['E']
+
+
+#Passo 4 Filtrar os clubeas com mais de 40 pontos
+
+clubes_maior_40_pontos = df[df['Pontos'] >= 40]
+
+#Passo 5 Visualizar os Dados
+
+# Passo 5 - Visualizar os Dados
+
+df.plot(
+    x='Clube',
+    y='Pontos',
+    kind='bar',
+    title='Pontuação dos clubes no brasileirão 2024'
+)
+
+
+melhor_saldo = df[df['Saldo de Gols'] == df['Saldo de Gols'].max()]
+melhor_saldo
+
+top_vitorias = df.sort_values(by='V', ascending=False).head(5)
+top_vitorias
+
+tabela_final = df.sort_values(by='Pontos', ascending=False)
+print(tabela_final)
+
+melhor_saldo = df[df['Saldo de Gols'] == df['Saldo de Gols'].max]
+melhor_saldo
