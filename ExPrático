@@ -1,0 +1,113 @@
+import numpy as np
+import pandas as pd
+
+# 1. Diagnóstico
+
+print("Dimensões:", df_vendas.shape)
+df_vendas.info()
+
+print("\nValores nulos:")
+print(df_vendas.isnull().sum())
+
+
+# 2. Tratamento dos valores nulos
+
+medianas_categoria = (
+    df_vendas.groupby('categoria')['valor']
+    .transform('median')
+)
+
+df_vendas['valor'] = df_vendas['valor'].fillna(
+    medianas_categoria
+)
+
+print("\nDataFrame após tratamento:")
+print(df_vendas)
+
+
+# 3. Filtrar vendas concluídas > R$ 500
+
+vendas_filtradas = df_vendas.loc[
+    (df_vendas['status'] == 'Concluído') &
+    (df_vendas['valor'] > 500)
+]
+
+print("\nVendas concluídas acima de R$ 500:")
+print(vendas_filtradas)
+
+
+# 4. Left merge
+
+df_completo = df_vendas.merge(
+    df_clientes,
+    on='cliente_id',
+    how='left'
+)
+
+print("\nDataFrame após merge:")
+print(df_completo)
+
+
+# 5. Média por categoria
+
+df_completo['media_categoria'] = (
+    df_completo.groupby('categoria')['valor']
+    .transform('mean')
+)
+
+
+# 6. Clientes Gmail
+
+filtro_gmail = df_completo['email'].str.contains(
+    '@gmail.com',
+    na=False
+)
+
+qtd_clientes_gmail = (
+    df_completo.loc[filtro_gmail, 'cliente_id']
+    .nunique()
+)
+
+print("\nQuantidade de clientes Gmail:")
+print(qtd_clientes_gmail)
+
+
+# 7. Tratamento temporal
+
+df_completo['data_hora'] = pd.to_datetime(
+    df_completo['data_hora']
+)
+
+meses = {
+    1: 'Janeiro',
+    2: 'Fevereiro',
+    3: 'Março',
+    4: 'Abril',
+    5: 'Maio',
+    6: 'Junho',
+    7: 'Julho',
+    8: 'Agosto',
+    9: 'Setembro',
+    10: 'Outubro',
+    11: 'Novembro',
+    12: 'Dezembro'
+}
+
+df_completo['mes'] = (
+    df_completo['data_hora'].dt.month.map(meses)
+)
+
+
+# 8. Tabela dinâmica
+
+tabela_pivot = pd.pivot_table(
+    df_completo,
+    values='valor',
+    index='categoria',
+    columns='cidade',
+    aggfunc='sum',
+    fill_value=0
+)
+
+print("\nTabela dinâmica:")
+print(tabela_pivot)
