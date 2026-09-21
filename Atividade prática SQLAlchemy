@@ -1,0 +1,124 @@
+import os
+
+from sqlalchemy import ForeignKey, String, Float, create_engine, select
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
+
+CAMINHO_DB = "sistema_rh_orm.db"
+
+class Base(DeclarativeBase):
+    """Equivalente moderno de declarative_base(): toda classe ORM herda daqui."""
+    pass
+
+
+class Departamento(Base):
+    __tablename__ = "departamentos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Navegação objeto -> objeto: departamento.funcionarios
+    funcionarios: Mapped[list["FuncionarioORM"]] = relationship(
+        back_populates="departamento", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return f"Departamento(id={self.id!r}, nome={self.nome!r})"
+
+
+class FuncionarioORM(Base):
+    __tablename__ = "funcionarios_orm"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(100), nullable=False)
+    cargo: Mapped[str] = mapped_column(String(100), nullable=False)
+    salario: Mapped[float] = mapped_column(Float, nullable=False)
+
+    departamento_id: Mapped[int] = mapped_column(ForeignKey("departamentos.id"))
+
+    # Navegação objeto -> objeto: funcionario.departamento
+    departamento: Mapped["Departamento"] = relationship(back_populates="funcionarios")
+
+    def __repr__(self):
+        return f"FuncionarioORM(id={self.id!r}, nome={self.nome!r}, cargo={self.cargo!r})"
+
+
+def preparar_banco_limpo(engine):
+    """Recria o banco do zero para uma demonstração reprodutível."""
+    if os.path.exists(CAMINHO_DB):
+        os.remove(CAMINHO_DB)
+    Base.metadata.create_all(engine)
+    print("Tabelas 'departamentos' e 'funcionarios_orm' criadas.")
+
+
+def passo3_criar_sessao_e_persistir(engine):
+    """
+    Passo 3: fábrica de sessões com sessionmaker, criação de um Departamento
+    com funcionários associados, e persistência com add() + commit().
+    """
+    SessionLocal = sessionmaker(bind=engine)
+    sessao: Session = SessionLocal()
+
+    departamento_ti = Departamento(nome="TI")
+    departamento_ti.funcionarios.append(
+        FuncionarioORM(nome="Ana Souza", cargo="Desenvolvedor Júnior", salario=3850.00)
+    )
+    departamento_ti.funcionarios.append(
+        FuncionarioORM(nome="Carla Dias", cargo="Desenvolvedor Sênior", salario=7500.00)
+    )
+
+    departamento_rh = Departamento(nome="Recursos Humanos")
+    departamento_rh.funcionarios.append(
+        FuncionarioORM(nome="Diego Alves", cargo="Gerente de Projetos", salario=9000.00)
+    )
+
+    # add() no objeto pai já é suficiente: o relationship propaga o
+    # salvamento dos funcionários associados (cascade padrão do SQLAlchemy)
+    sessao.add(departamento_ti)
+    sessao.add(departamento_rh)
+    sessao.commit()
+
+    print("Departamentos e funcionários persistidos no banco.")
+    return sessao
+
+
+def passo4_consultar_funcionarios_do_departamento(sessao, nome_departamento):
+    """
+    Passo 4: consulta orientada a objetos — retorna instâncias de
+    FuncionarioORM (não linhas textuais) usando .scalars().all().
+    """
+    funcionarios_do_departamento = (
+        sessao.execute(
+            select(FuncionarioORM)
+            .join(Departamento)
+            .where(Departamento.nome == nome_departamento)
+        )
+        .scalars()
+        .all()
+    )
+
+    print(f"\nFuncionários do departamento '{nome_departamento}':")
+    for funcionario in funcionarios_do_departamento:
+        print(
+            f"  {funcionario.nome} — {funcionario.cargo} "
+            f"(R$ {funcionario.salario:.2f}) — depto: {funcionario.departamento.nome}"
+        )
+
+    return funcionarios_do_departamento
+
+
+if __name__ == "__main__":
+    print("=== NÍVEL 3: ORM ===")
+    engine = create_engine(f"sqlite:///{CAMINHO_DB}")
+
+    preparar_banco_limpo(engine)
+    sessao = passo3_criar_sessao_e_persistir(engine)
+    passo4_consultar_funcionarios_do_departamento(sessao, "TI")
+
+    sessao.close()
