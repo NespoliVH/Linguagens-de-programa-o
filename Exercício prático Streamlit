@@ -1,0 +1,83 @@
+import pandas as pd
+import streamlit as st
+
+#1
+
+st.title("Dashboard de Vendas")
+
+
+@st.cache_data
+def carregar_dados(caminho_csv: str = "vendas.csv") -> pd.DataFrame:
+    """
+    Lê o CSV de vendas e converte a coluna de data.
+
+    O decorador @st.cache_data guarda o resultado em memória: enquanto o
+    caminho_csv não mudar, o Streamlit reaproveita o DataFrame já lido em
+    vez de reler o arquivo do disco a cada interação do usuário na tela.
+    """
+    df = pd.read_csv(caminho_csv)
+    df["data"] = pd.to_datetime(df["data"])
+    return df
+
+
+df = carregar_dados()
+
+#2
+
+st.sidebar.title("Filtros")
+
+lista_de_categorias = sorted(df["categoria"].unique())
+
+categorias_selecionadas = st.sidebar.multiselect(
+    "Selecione as Categorias",
+    options=lista_de_categorias,
+    default=lista_de_categorias,  # começa com tudo selecionado
+)
+
+# Regra de ouro do Streamlit: o valor retornado pelo widget filtra o
+# DataFrame, e a tela inteira se atualiza sozinha quando o filtro muda.
+df_filtrado = df[df["categoria"].isin(categorias_selecionadas)]
+
+if df_filtrado.empty:
+    st.warning("Nenhuma categoria selecionada — escolha ao menos uma no menu lateral.")
+    st.stop()
+
+#3
+
+# Passo 1: colunas proporcionais para as métricas
+col1, col2 = st.columns([1, 1])
+
+receita_calculada = df_filtrado["receita"].sum()
+total_pedidos = df_filtrado["id_pedido"].nunique()
+
+# Passo 2: indicadores numéricos em destaque
+with col1:
+    st.metric(label="Receita Total", value=f"R$ {receita_calculada:,.2f}")
+
+with col2:
+    st.metric(label="Total de Pedidos", value=total_pedidos)
+
+# Passo 3: navegação por abas
+aba1, aba2 = st.tabs(["Evolução Mensal", "Tabela de Dados"])
+
+# Passo 4: receita agrupada por mês, plotada em gráfico de área
+with aba1:
+    df_filtrado_mensal = df_filtrado.copy()
+    df_filtrado_mensal["mes"] = df_filtrado_mensal["data"].dt.to_period("M").astype(str)
+    receita_por_mes = df_filtrado_mensal.groupby("mes")["receita"].sum()
+
+    st.subheader("Receita por mês")
+    st.area_chart(receita_por_mes)
+
+# Passo 5: tabela interativa + botão de download do recorte filtrado
+with aba2:
+    st.subheader("Dados filtrados")
+    st.dataframe(df_filtrado, use_container_width=True)
+
+    csv_para_download = df_filtrado.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Baixar dados filtrados (CSV)",
+        data=csv_para_download,
+        file_name="vendas_filtradas.csv",
+        mime="text/csv",
+    )
