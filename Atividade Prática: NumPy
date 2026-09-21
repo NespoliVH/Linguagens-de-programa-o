@@ -1,0 +1,78 @@
+#1
+def nivel1_faturamento_semanal():
+    print("\n=== NÍVEL 1: Faturamento semanal e filtros ===")
+
+    # Passo 1: histórico diário de peças vendidas na semana
+    pecas_vendidas = np.array([150, 120, 90, 210, 300, 250, 180])
+    print("Peças vendidas por dia:", pecas_vendidas)
+
+    # Passo 2: faturamento estimado (preço médio de R$ 50,00 por peça),
+    # operação vetorizada — sem laços de repetição
+    faturamento = pecas_vendidas * 50
+    print("Faturamento estimado por dia:", faturamento)
+
+    # Passo 3: máscara booleana para dias com mais de 200 peças vendidas
+    dias_pico = pecas_vendidas[pecas_vendidas > 200]
+    print("Dias de pico (> 200 peças):", dias_pico)
+
+    return pecas_vendidas, faturamento, dias_pico
+
+
+#2
+
+def nivel2_multiplas_filiais():
+    print("\n=== NÍVEL 2: Múltiplas filiais e falhas de sistema ===")
+
+    # Passo 1: matriz 2D — lojas nas linhas, dias nas colunas
+    loja_a = [200, 220, np.nan, 250]  # falha no sistema no 3º dia
+    loja_b = [150, 180, 160, 190]
+    loja_c = [300, 310, 290, 330]
+    vendas_filiais = np.array([loja_a, loja_b, loja_c])
+    print("Matriz de vendas (lojas x dias):\n", vendas_filiais)
+
+    # Passo 2: total de peças vendidas por loja (soma pelas linhas, axis=1)
+    # Observação: como a Loja A tem um NaN, seu total também será NaN aqui —
+    # é exatamente esse problema que o Passo 3 resolve com nanmean.
+    total_por_loja = np.sum(vendas_filiais, axis=1)
+    print("Total por loja (axis=1):", total_por_loja)
+
+    # Passo 3: média diária geral da rede, ignorando valores NaN
+    media_geral = np.nanmean(vendas_filiais)
+    print("Média geral da rede (ignorando NaN):", media_geral)
+
+    # Passo 4: matriz condicional com base na meta de 200 peças/dia
+    status_metas = np.where(vendas_filiais >= 200, "Meta Atingida", "Abaixo")
+    print("Status de metas por loja/dia:\n", status_metas)
+
+    return vendas_filiais, total_por_loja, media_geral, status_metas
+
+#3
+
+def nivel3_categorizacao_marketing():
+    print("\n=== NÍVEL 3: Categorização e destaques de marketing ===")
+
+    # Passo 1: amostra reprodutível de 50 vendas por departamento
+    rng = np.random.default_rng(42)  # semente fixa para reprodutibilidade
+    departamentos = ["Eletrônicos", "Roupas", "Casa"]
+    amostra_vendas = rng.choice(departamentos, size=50)
+    print("Amostra de vendas (primeiras 10):", amostra_vendas[:10])
+
+    # Passo 2: contagem de vendas por departamento
+    valores_unicos, contagens = np.unique(amostra_vendas, return_counts=True)
+    for departamento, contagem in zip(valores_unicos, contagens):
+        print(f"  {departamento}: {contagem} vendas")
+
+    # Passo 3: campanha de marketing com maior faturamento
+    faturamento_campanhas = np.array([12000, 45000, 23000, 89000, 31000])
+    indice_campanha_campea = np.argmax(faturamento_campanhas)
+    print(
+        f"Campanha campeã: índice {indice_campanha_campea} "
+        f"(faturamento R$ {faturamento_campanhas[indice_campanha_campea]})"
+    )
+
+    return amostra_vendas, valores_unicos, contagens, indice_campanha_campea
+
+if __name__ == "__main__":
+    nivel1_faturamento_semanal()
+    nivel2_multiplas_filiais()
+    nivel3_categorizacao_marketing()
