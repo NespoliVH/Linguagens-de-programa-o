@@ -1,0 +1,171 @@
+import io
+import time
+
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+
+def nivel1_requisicao_basica():
+    """Exercícios 1.1 a 1.4."""
+    print("\n=== NÍVEL 1: Requisição básica ===")
+
+    url = "https://jsonplaceholder.typicode.com/posts"
+
+    # 1.2: parâmetro de filtro (userId=2)
+    parametros = {"userId": 2}
+
+    # 1.3: cabeçalho customizado com User-Agent
+    cabecalhos = {
+        "User-Agent": "AtividadePython-EstudosWeb/1.0 (contato@exemplo.com)"
+    }
+
+    resposta = requests.get(
+        url,
+        params=parametros,
+        headers=cabecalhos,
+        timeout=10,
+    )
+
+    # 1.4: status code e URL final montada pelo requests
+    print("Status code:", resposta.status_code)
+    print("URL final:", resposta.url)
+
+    if resposta.status_code == 200:
+        dados = resposta.json()
+        print(f"Total de posts retornados para userId=2: {len(dados)}")
+        if dados:
+            print("Exemplo de post:", dados[0]["title"])
+
+    return resposta
+
+#2
+def nivel2_consulta_ceps():
+    """Exercício 2.1: consulta vários CEPs no ViaCEP e monta um DataFrame."""
+    print("\n=== NÍVEL 2.1: Consulta de CEPs (ViaCEP) ===")
+
+    ceps = ["01310-100", "20040-020", "70150-900"]  # Av. Paulista, Rio, Brasília
+    resultados = []
+
+    for cep in ceps:
+        cep_limpo = cep.replace("-", "").replace(".", "")
+        url = f"https://viacep.com.br/ws/{cep_limpo}/json/"
+        try:
+            resposta = requests.get(url, timeout=10)
+            resposta.raise_for_status()
+            dados = resposta.json()
+            if "erro" in dados:
+                print(f"CEP {cep} não encontrado.")
+                continue
+            resultados.append(dados)
+        except requests.exceptions.RequestException as erro:
+            print(f"Falha ao consultar o CEP {cep}: {erro}")
+
+        time.sleep(0.3)  # pequena pausa entre requisições, por boas práticas
+
+    df_ceps = pd.DataFrame(resultados)
+    if not df_ceps.empty:
+        print(df_ceps[["cep", "logradouro", "bairro", "localidade", "uf"]])
+    return df_ceps
+
+
+def nivel2_download_seguro(url, caminho_arquivo):
+    """Exercício 2.2: função de download com tratamento de erros."""
+    try:
+        resposta = requests.get(url, timeout=10)
+        resposta.raise_for_status()
+    except requests.exceptions.HTTPError as erro_http:
+        print(f"Erro HTTP ao baixar {url}: {erro_http}")
+        return False
+    except requests.exceptions.RequestException as erro:
+        print(f"Falha de conexão ao baixar {url}: {erro}")
+        return False
+
+    with open(caminho_arquivo, "wb") as arquivo:
+        arquivo.write(resposta.content)
+
+    print(f"Download concluído: {caminho_arquivo}")
+    return True
+
+
+def nivel2_download_imagem():
+    """Exercício 2.3: baixa uma imagem aleatória do Picsum Photos."""
+    print("\n=== NÍVEL 2.3: Download de imagem ===")
+    url_imagem = "https://picsum.photos/400/400"
+    caminho = "imagem_aleatoria.jpg"
+    nivel2_download_seguro(url_imagem, caminho)
+
+#3
+
+def nivel3_verificar_robots(url_base):
+    """Exercício 3.1: verifica o robots.txt antes de fazer scraping."""
+    print("\n=== NÍVEL 3.1: Verificação do robots.txt ===")
+    url_robots = url_base.rstrip("/") + "/robots.txt"
+    try:
+        resposta = requests.get(url_robots, timeout=10)
+        resposta.raise_for_status()
+        print(f"Conteúdo de {url_robots}:\n")
+        print(resposta.text)
+    except requests.exceptions.RequestException as erro:
+        print(f"Não foi possível obter o robots.txt: {erro}")
+
+
+def nivel3_scraping_livros():
+    """Exercícios 3.2 e 3.3: extrai os 5 primeiros livros de books.toscrape.com."""
+    print("\n=== NÍVEL 3.2/3.3: Scraping de livros ===")
+    url = "https://books.toscrape.com/"
+    cabecalhos = {"User-Agent": "AtividadePython-EstudosWeb/1.0"}
+
+    resposta = requests.get(url, headers=cabecalhos, timeout=10)
+    resposta.raise_for_status()
+
+    sopa = BeautifulSoup(resposta.text, "html.parser")
+    livros = sopa.select("article.product_pod")[:5]
+
+    dados_livros = []
+    for livro in livros:
+        titulo = livro.h3.a["title"]
+        preco = livro.select_one("p.price_color").get_text(strip=True)
+        dados_livros.append({"titulo": titulo, "preco": preco})
+
+    df_livros = pd.DataFrame(dados_livros)
+    print(df_livros)
+
+    # 3.3: salvar em CSV
+    caminho_csv = "livros_top5.csv"
+    df_livros.to_csv(caminho_csv, index=False, encoding="utf-8-sig")
+    print(f"Dados salvos em: {caminho_csv}")
+
+    return df_livros
+
+
+def nivel3_tabela_wikipedia():
+    """Exercício 3.4: extrai uma tabela da Wikipedia com pandas.read_html()."""
+    print("\n=== NÍVEL 3.4: Tabela da Wikipedia ===")
+    url = "https://en.wikipedia.org/wiki/List_of_countries_by_population_(United_Nations)"
+    cabecalhos = {"User-Agent": "AtividadePython-EstudosWeb/1.0"}
+
+    resposta = requests.get(url, headers=cabecalhos, timeout=10)
+    resposta.raise_for_status()
+
+    tabelas = pd.read_html(io.StringIO(resposta.text))
+    # A primeira tabela grande costuma ser a de interesse; se a estrutura da
+    # página mudar, ajuste o índice ou filtre pelas colunas esperadas.
+    df_populacao = tabelas[0]
+    print(df_populacao.head(10))
+
+    return df_populacao
+
+
+# ---------------------------------------------------------------------------
+# Execução
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    nivel1_requisicao_basica()
+
+    nivel2_consulta_ceps()
+    nivel2_download_imagem()
+
+    nivel3_verificar_robots("https://books.toscrape.com")
+    nivel3_scraping_livros()
+    nivel3_tabela_wikipedia()
